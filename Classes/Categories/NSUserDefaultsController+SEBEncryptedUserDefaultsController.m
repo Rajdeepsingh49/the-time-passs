@@ -44,6 +44,10 @@
 {
     NSArray *pathElements = [keyPath componentsSeparatedByString:@"."];
     NSString *key = [pathElements objectAtIndex:[pathElements count]-1];
+    // The Quit menu item is bound to this key: an exam's configuration cannot make the student unable to quit
+    if ([key isEqualToString:@"org_safeexambrowser_SEB_allowQuit"]) {
+        return @YES;
+    }
     if ([NSUserDefaults userDefaultsPrivate]) {
         id value = [[NSUserDefaults privateUserDefaults] valueForKey:key];
         //id value = [self.defaults secureObjectForKey:key];

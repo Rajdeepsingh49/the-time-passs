@@ -45,8 +45,8 @@ Double-clicking a `.seb` file, or opening a `seb://` link, starts the exam direc
   - Locked: a black backdrop covers every screen; Cmd+Tab, Mission Control, Spaces, Show Desktop, and the keys that move between tabs and windows (Ctrl+Tab, Cmd+1…9, Cmd+Shift+[ ], Cmd+`, Cmd+H, Cmd+M, Cmd+Option+←/→) do nothing.
   - Unlocked: gestures, Mission Control and app switching are the normal macOS ones, with no overlap.
 - **Copy and paste always work**, between the exam and any other app, even on pages that try to forbid it. Selecting text works too.
-- **Pages cannot tell** that the student switched windows, tabs or apps (no blur, focus or visibility events; `document.hidden` is always false), and cannot stop copy and paste, and cannot stop the student from quitting with Cmd+Q.
-- **Quit** with Cmd+Q and confirm. After the confirmation the app terminates within five seconds even if the web view is slow to answer.
+- **Pages cannot tell** that the student switched windows, tabs or apps (no blur, focus or visibility events, also not on the text box the student is typing in; `document.hidden` is always false; clicking elsewhere on the page or pressing Tab still sends the page's normal field events), and cannot stop copy and paste, and cannot stop the student from quitting with Cmd+Q.
+- **Quit** with Cmd+Q and confirm. After the confirmation the app terminates within five seconds even if the web view is slow to answer. An exam's own settings cannot change this: its quit password is never asked for, and "quitting is not allowed" is ignored.
 - **Camera and microphone**, for exams that need them: SEB shows its own "Permissions Required" message, then macOS asks once. The app never records or uploads anything.
 
 ## The log
@@ -82,7 +82,8 @@ Run this once on every kind of Mac the college has (Apple silicon and Intel, eac
 6. **Windows:** a link that opens "in a new window" must open in the same window; there must never be a second exam window.
 7. **Camera exam:** on the first camera page SEB shows "Permissions Required", then macOS asks once. After Allow, live video appears.
 8. **Quit:** Cmd+Q, then Return. SEB must be gone within 5 seconds, and the Mac's own Dock, menu bar and apps must be normal afterwards.
-9. **Check the log:** `bash verify-install.sh` again. It must still end with `All checks passed.`, now including a start-of-session line, an end-of-session line and no page addresses.
+9. **An exam's own settings:** open a `.seb` file (or a `sebs://` link from the exam portal) instead of typing an address, ideally one that has a quit password. Repeat steps 4 and 8 in that session: lock, then unlock, and another app must come forward again (the first unlock after opening a `.seb` file used to leave SEB locked); Cmd+Q must show the plain Quit / Cancel dialog and never ask for a password.
+10. **Check the log:** `bash verify-install.sh` again. It must still end with `All checks passed.`, now including a start-of-session line, an end-of-session line and no page addresses.
 
 If a step fails, send the step number, the Mac model, the macOS version (Apple menu, About This Mac) and the output of `bash verify-install.sh`.
 

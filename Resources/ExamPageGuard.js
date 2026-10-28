@@ -25,12 +25,24 @@
       value: function hasFocus() { return true; }, writable: true, configurable: true
     });
 
-    // Only events aimed at the window or the document are swallowed: focus and blur of the page's own
-    // elements (inputs, buttons, links) are untouched, so forms and keyboard navigation keep working.
+    // Swallowed: events aimed at the window or the document, and the two events that the page's focused element
+    // gets when the whole window loses focus and gets it back (switching to another app or window). WebKit sends
+    // that blur while the element is still the active one and with nothing taking over its focus, and the focus
+    // that comes back lands on the same element. Focus moving between the page's own elements, to the page
+    // background or with the Tab key is untouched, so forms and keyboard navigation keep working.
+    // (focusin and focusout are not sent when the window changes focus.)
+    var blurredWithWindow = null;
     var swallowWindowEvent = function (event) {
       var target = event.target;
       if (target === window || target === document) {
         event.stopImmediatePropagation();
+      } else if (event.type === 'blur' && event.relatedTarget === null && target === document.activeElement) {
+        blurredWithWindow = target;
+        event.stopImmediatePropagation();
+      } else if (event.type === 'focus') {
+        var comesBackWithWindow = (target === blurredWithWindow && event.relatedTarget === null);
+        blurredWithWindow = null;
+        if (comesBackWithWindow) { event.stopImmediatePropagation(); }
       } else if (event.type === 'mouseleave' && target === document.documentElement) {
         event.stopImmediatePropagation();
       }

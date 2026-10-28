@@ -935,7 +935,10 @@ bool insideMatrix(void);
     if (locked) {
         [[NSRunningApplication currentApplication] activateWithOptions:(NSApplicationActivateAllWindows | NSApplicationActivateIgnoringOtherApps)];
     }
-    [self switchKioskModeAppsAllowed:(locked ? NO : _sessionState.allowSwitchToApplications) overrideShowMenuBar:NO];
+    // Unlocking goes back to what the exam's settings say, read from the settings and not from the session state
+    // (which is empty for a moment while a session restarts, see -strictKioskActive)
+    BOOL appsAllowedByExam = [[NSUserDefaults standardUserDefaults] secureBoolForKey:@"org_safeexambrowser_SEB_allowSwitchToApplications"];
+    [self switchKioskModeAppsAllowed:(locked ? NO : appsAllowedByExam) overrideShowMenuBar:NO];
     // Locked: the black backdrop covers the screens like the original kiosk. Unlocked: it goes away
     [self recoverScreens];
     if (locked) {
@@ -6044,7 +6047,8 @@ conditionallyForWindow:(NSWindow *)window
 - (void) setElevateWindowLevels
 {
     NSUserDefaults *preferences = [NSUserDefaults standardUserDefaults];
-    _sessionState.allowSwitchToApplications = [preferences secureBoolForKey:@"org_safeexambrowser_SEB_allowSwitchToApplications"];
+    // Through the accessor: a restarting session empties the state, and the accessor makes a new one to put the value in
+    self.sessionState.allowSwitchToApplications = [preferences secureBoolForKey:@"org_safeexambrowser_SEB_allowSwitchToApplications"];
 //#ifdef DEBUG
 //    if (!_isAACEnabled) {
 //        _sessionState.allowSwitchToApplications = YES;
@@ -7199,49 +7203,11 @@ conditionallyForWindow:(NSWindow *)window
 - (IBAction) requestedQuit:(id)sender
 {
     DDLogDebug(@"%s sender: %@ (class %@)", __FUNCTION__, sender, [sender class]);
-    // Load quitting preferences from the system's user defaults database
-    NSUserDefaults *preferences = [NSUserDefaults standardUserDefaults];
-    NSString *hashedQuitPassword = [preferences secureObjectForKey:@"org_safeexambrowser_SEB_hashedQuitPassword"];
-    if ([preferences secureBoolForKey:@"org_safeexambrowser_SEB_allowQuit"] == YES) {
-        NSWindow *currentMainWindow = self.browserController.mainBrowserWindow;
-        if (self.settingsOpen ) {
-            currentMainWindow = self.preferencesController.preferencesWindow;
-            DDLogDebug(@"Preferences are open, displaying according alerts as sheet on window %@", currentMainWindow);
-        }
-        // if quitting SEB is allowed
-        [[NSRunningApplication currentApplication] activateWithOptions:(NSApplicationActivateAllWindows | NSApplicationActivateIgnoringOtherApps)];
-
-        if (![hashedQuitPassword isEqualToString:@""]) {
-            DDLogInfo(@"%s Displaying quit password alert", __FUNCTION__);
-            // if quit password is set, then restrict quitting
-            if ([self showEnterPasswordDialog:NSLocalizedString(@"Enter quit password:", @"") modalForWindow:currentMainWindow pseudoModal:NO windowTitle:@""] == SEBEnterPasswordCancel) return;
-            NSString *password = [self.enterPassword stringValue];
-            
-            SEBKeychainManager *keychainManager = [[SEBKeychainManager alloc] init];
-            if ([keychainManager hashedString:hashedQuitPassword matchesPassword:password]) {
-                // if the correct quit password was entered
-                DDLogInfo(@"Correct quit password entered");
-                [self quitSEBOrSession]; // Quit SEB or the exam session
-
-            } else {
-                // Wrong quit password was entered
-                DDLogInfo(@"Wrong quit password entered");
-                NSAlert *modalAlert = [self newAlert];
-                [modalAlert setMessageText:NSLocalizedString(@"Wrong Quit Password", @"")];
-                [modalAlert setInformativeText:NSLocalizedString(@"If you don't enter the correct quit password, then you cannot quit.", @"")];
-                [modalAlert addButtonWithTitle:NSLocalizedString(@"OK", @"")];
-                [modalAlert setAlertStyle:NSAlertStyleWarning];
-                void (^wrongPasswordEnteredOK)(NSModalResponse) = ^void (NSModalResponse answer) {
-                    [self removeAlertWindow:modalAlert.window];
-                };
-                [self runModalAlert:modalAlert conditionallyForWindow:currentMainWindow completionHandler:(void (^)(NSModalResponse answer))wrongPasswordEnteredOK];
-            }
-        } else {
-            // If no quit password is required, then confirm quitting, with default option "Quit"
-            DDLogInfo(@"%s No quit password required, continue", __FUNCTION__);
-            [self sessionQuitRestartIgnoringQuitPW:NO];
-        }
-    }
+    // The student can always leave with Cmd+Q and a confirmation. An exam's configuration cannot take that away:
+    // its quit password is never asked for and its "quitting is not allowed" is not honoured (this build has no proctor).
+    [[NSRunningApplication currentApplication] activateWithOptions:(NSApplicationActivateAllWindows | NSApplicationActivateIgnoringOtherApps)];
+    DDLogInfo(@"%s No quit password required, continue", __FUNCTION__);
+    [self sessionQuitRestartIgnoringQuitPW:NO];
 }
 
 
@@ -7478,14 +7444,15 @@ conditionallyForWindow:(NSWindow *)window
 {
     // Adjust screen shot blocking
     [self.systemManager adjustScreenCapture];
-    
-    [self setElevateWindowLevels];
 
     // Reopen main browser window and load start URL
     DDLogDebug(@"%s re-openMainBrowserWindow", __FUNCTION__);
-    
+
     // Reset session state here, to prevent overriden lock screens for Siri etc. to appear too early
     self.sessionState = nil;
+    // After the reset, not before it: otherwise the reset also wipes whether other apps are allowed, the new state
+    // says "not allowed", and unlocking the exam (Cmd+Shift+L) puts the strict kiosk back instead of releasing it
+    [self setElevateWindowLevels];
     // A restarted session (e.g. a new exam configuration was opened) starts unlocked, behind the black cover
     _examLocked = NO;
     _startupCoverActive = YES;
