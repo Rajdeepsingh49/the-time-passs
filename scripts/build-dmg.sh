@@ -48,7 +48,7 @@ xcodebuild \
   DEVELOPMENT_TEAM="" \
   PROVISIONING_PROFILE_SPECIFIER="" \
   CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
-  LIBRARY_SEARCH_PATHS="\$(inherited) $EXTRA_LIBS" \
+  LIBRARY_SEARCH_PATHS="\$(inherited)${EXTRA_LIBS:+ \"$EXTRA_LIBS\"}" \
   build
 
 APP="$BUILD/DerivedData/Build/Products/Release/$PRODUCT.app"
