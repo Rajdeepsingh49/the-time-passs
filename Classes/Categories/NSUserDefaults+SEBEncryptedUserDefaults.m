@@ -1411,6 +1411,14 @@ static NSNumber *_logLevel;
 
 - (BOOL)secureBoolForKey:(NSString *)key
 {
+#if !TARGET_OS_IPHONE
+	// Whether other applications can be used is decided by the exam lock (Cmd+Shift+L) alone, never by an exam's
+	// configuration: a session starts unlocked, locking closes SEB and unlocking opens it again. An exam that says
+	// "no other applications" cannot leave the student with a lock that doesn't let go.
+	if ([key isEqualToString:@"org_safeexambrowser_SEB_allowSwitchToApplications"]) {
+		return YES;
+	}
+#endif
 	id object = [self secureObjectForKey:key];
 	if ([object respondsToSelector:@selector(boolValue)]) {
 		return [object boolValue];

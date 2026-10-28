@@ -2187,6 +2187,13 @@ static NSString * const kSEBWiFiKeychainService = @"org.safeexambrowser.SEB.wifi
     NSMutableSet *loggedAppKeys = [NSMutableSet new];
     for (NSRunningApplication *app in runningAppsAtSessionStart) {
         NSString *name = app.localizedName ?: @"(unknown)";
+        if (!app.bundleIdentifier) {
+            // A process without a bundle ID is named by its command line ("npm exec tool --access-token ..."), and
+            // arguments can hold passwords and tokens that must never reach a file: only the program's name is written
+            NSString *program = [[name stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet]
+                                 componentsSeparatedByCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet].firstObject;
+            name = program.length > 0 ? program : @"(unknown)";
+        }
         NSString *bundleID = app.bundleIdentifier ?: @"(no bundle ID)";
         NSString *key = [NSString stringWithFormat:@"%@|%@", name, bundleID];
         if (![loggedAppKeys containsObject:key]) {
@@ -3329,7 +3336,7 @@ void run_on_ui_thread(dispatch_block_t block)
 
     _myLogger = [MyGlobals initializeFileLoggerWithDirectory:nil];
     [DDLog addLogger:_myLogger];
-    
+
     DDLogInfo(@"---------- STARTING UP SEB - INITIALIZE SETTINGS -------------");
     DDLogInfo(@"(log continues in the same file if the current settings keep the default log directory, otherwise in another file in the configured directory)");
     DDLogInfo(@"Temporary startup log directory: %@", _myLogger.logFileManager.logsDirectory);
