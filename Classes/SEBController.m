@@ -3335,17 +3335,43 @@ void run_on_ui_thread(dispatch_block_t block)
 
 - (void) initializeLogger
 {
-    // The log is always written, to the standard log directory, whatever the settings say about
-    // logging; what goes into it is decided by the filter in front of the logger (ExamLogFormatter).
-    // The logger started in -initializeTemporaryLogger just continues, in the same file.
-    if (!_myLogger) {
-        _myLogger = [MyGlobals initializeFileLoggerWithDirectory:nil];
-        [DDLog addLogger:_myLogger];
-    }
+    // Initialize file logger if logging enabled, as the original does: the exam's settings decide whether
+    // there is a log, where it is written and at which level. What goes into it is decided by the filter in
+    // front of the logger (ExamLogFormatter).
+    NSUserDefaults *preferences = [NSUserDefaults standardUserDefaults];
+    if ([preferences secureBoolForKey:@"org_safeexambrowser_SEB_enableLogging"] == NO) {
+        [DDLog removeLogger:_myLogger];
+        _myLogger = nil;
+    } else {
+        //Set log directory
+        NSString *logPath = [[NSUserDefaults standardUserDefaults] secureStringForKey:@"org_safeexambrowser_SEB_logDirectoryOSX"];
+        if (logPath.length == 0) {
+            // No log directory indicated: We use the standard one
+            logPath = nil;
+        } else {
+            logPath = [logPath stringByExpandingTildeInPath];
+            // Add subdirectory with the name of the computer
+        }
+        // Only switch the file logger when the resolved log directory actually differs from the
+        // one the current logger (e.g. the temporary startup logger set up in
+        // -initializeTemporaryLogger) is already writing to. Creating a new DDFileLogger rolls a
+        // new log file, so recreating it unconditionally split the startup log (including the
+        // early client-settings reconfigure logged during -init) from the rest of the session.
+        // Keeping the same logger when the directory is unchanged (typically the default log
+        // directory) keeps the whole session in one continuous file.
+        DDFileLogger *candidateLogger = [MyGlobals initializeFileLoggerWithDirectory:logPath];
+        if (_myLogger && [_myLogger.logFileManager.logsDirectory isEqualToString:candidateLogger.logFileManager.logsDirectory]) {
+            // Same directory: keep the existing logger so logging continues in the same file.
+        } else {
+            [DDLog removeLogger:_myLogger];
+            _myLogger = candidateLogger;
+            [DDLog addLogger:_myLogger];
+        }
 
-    DDLogInfo(@"---------- INITIALIZING SEB - STARTING SESSION -------------");
-    DDLogInfo(@"Log directory: %@%@", _myLogger.logFileManager.logsDirectory, @" (default)");
-    [MyGlobals logSystemInfo];
+        DDLogInfo(@"---------- INITIALIZING SEB - STARTING SESSION -------------");
+        DDLogInfo(@"Log directory: %@%@", _myLogger.logFileManager.logsDirectory, (logPath == nil) ? @" (default)" : @" (from settings)");
+        [MyGlobals logSystemInfo];
+    }
 }
 
 

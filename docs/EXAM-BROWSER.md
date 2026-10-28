@@ -6,7 +6,7 @@ An internal build of Safe Exam Browser 3.7.1.1 for exams where students may use 
 
 ## Contents of a release
 
-`build/SafeExamBrowser-3.7.1.1.dmg`, universal (Apple silicon and Intel), about 12 MB. Build it with `bash scripts/build-dmg.sh` (needs Xcode; the first build downloads the Swift packages). Check a copy with `shasum -a 256`; the file built on 2026-10-28 has the SHA-256 `126e117b4666808245e5557affd572bd8794c0493225cfd218c6d99aef3203d1`.
+`build/SafeExamBrowser-3.7.1.1.dmg`, universal (Apple silicon and Intel), about 12 MB. Build it with `bash scripts/build-dmg.sh` (needs Xcode; the first build downloads the Swift packages). Check a copy with `shasum -a 256`; the file built on 2026-10-28 has the SHA-256 `4bbe140d7607366a856692698674a068a34732a403506f1384a7ff35ea477b4d`.
 
 `bash scripts/package-release.sh` then gathers what to hand out into `build/release/`: the DMG, `install-exam-browser.sh`, `verify-install.sh`, this guide, and `SHA256SUMS` (check with `shasum -a 256 -c SHA256SUMS` inside that folder).
 
@@ -54,13 +54,15 @@ Double-clicking a `.seb` file, or opening a `seb://` link, starts the exam direc
 Location: `~/Library/Logs/Safe Exam Browser/`. File name: `org.safeexambrowser.SafeExamBrowser <UTC date and time>.log`. It is the original SEB log: same logger, same line layout (`yyyy/MM/dd HH:mm:ss:SSS  message`), same wording, up to 20 files kept. **SEB adds no lines of its own.**
 
 - The start of the exam is the original `---------- INITIALIZING SEB - STARTING SESSION ----------` line, and the end is `---------- EXITING SEB - ENDING SESSION ----------`, each with its time. The applications that were running in the background at the start are listed, as in the original.
-- While the exam runs, **nothing** is written.
-- Lines that would show what the student did are never written, at any time: page addresses and titles, copy and paste, downloads, applications started or switched to, window and focus switching. Locking or unlocking (Cmd+Shift+L) leaves no trace either.
+- While the exam runs the original keeps writing what it writes on its own (for example WiFi status changes, errors, and the quit sequence when the exam ends), exactly as the original does. Only the lines below are left out.
+- Lines that would show what the student did are never written, at any time: page addresses and titles, copy and paste, downloads, applications started or switched to, and window and focus switching. Locking or unlocking (Cmd+Shift+L) leaves no trace either.
+- While the exam runs, a few more kinds of lines are left out because each of them is something the student did: other applications opening windows or being found, checked or ended, SEB's window gaining or losing focus, the Tab key, user switching, starting an application from SEB's Dock, opening a new window or tab, reloading, a link the URL filter blocked, a file upload, a web server's certificate request, cookie lists, a page opening a window with JavaScript, dictionary look-ups, and SEB's kiosk, window-level and screen-cover set-up (which the exam lock drives, so locking or unlocking cannot show up in the log even a moment later). Before the exam starts and after it ends these are written as in the original, because then they only describe what is open on the Mac (for example, the applications that were open when SEB started).
+- The exam's own settings decide, as in the original, whether there is a log, where it is written and at which level.
 - If the app is killed (force quit, power loss) there is no end line, as in the original.
 
 ## What differs from the official Safe Exam Browser
 
-Defaults are relaxed for open-book use: switching to other applications is allowed, no process or virtual-machine, screen-sharing, display or accessibility checks, no Location Services or Full Disk Access requests, no changes to the student's system settings, the system clipboard is shared with other apps, and the app need not live in `/Applications`. SEB Server, screen proctoring and remote proctoring do not exist in this build.
+Defaults are relaxed for open-book use: switching to other applications is allowed, no process or virtual-machine, screen-sharing, display or accessibility checks, no Location Services or Full Disk Access requests, no changes to the student's system settings, the system clipboard is shared with other apps, and the app need not live in `/Applications`. SEB Server, screen proctoring and remote proctoring do not exist in this build, so the log never has lines about them (nor about Location Services, which this build never requests).
 
 Two bugs of the original are fixed: a held Command key at launch no longer produces a blocking alert when quitting (when the setting that forbids it is off), and the process watchers no longer use a fifth of a CPU core at idle (about 2% now).
 

@@ -203,13 +203,6 @@ SYNTHESIZE_SINGLETON_FOR_CLASS(MyGlobals);
 
 - (void)setDDLogLevel:(SEBLogLevel)sebLogLevel
 {
-#if !TARGET_OS_IPHONE
-    // The log always has the original's default detail (Debug level): what ends up in it is decided by the
-    // filter in front of the logger, not by a log level from the exam's settings
-    _logLevel = DDLogLevelDebug;
-    ddLogLevel = _logLevel;
-    return;
-#endif
     NSArray *ddLogLevels = @[[NSNumber numberWithInt:DDLogLevelError],
                              [NSNumber numberWithInt:DDLogLevelWarning],
                              [NSNumber numberWithInt:DDLogLevelInfo],

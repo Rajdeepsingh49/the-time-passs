@@ -92,7 +92,8 @@ static NSLock *phaseLock;
 //   download                    names of downloaded files
 //   Started application, launched app, Activated app     applications the student starts or switches to
 //   Switched back to SEB, Regain active, isActive property, App which switched Space     focus and window switching
-// Everything else the original writes while SEB starts up and quits stays exactly as the original wrote it.
+//   Notification: NSWorkspace...   the system telling SEB that an application started, was activated or the Space changed
+// Everything else the original writes stays exactly as the original wrote it.
 + (NSRegularExpression *)neverLoggedPattern
 {
     static NSRegularExpression *pattern;
@@ -101,6 +102,51 @@ static NSLock *phaseLock;
         pattern = [NSRegularExpression regularExpressionWithPattern:
                    @"://|Title of current Page|clipboard|pasteboard|download"
                    @"|Started application|launched app|Activated app|Switched back to SEB|Regain active|isActive property|App which switched Space"
+                   @"|Notification: +NSWorkspace"
+                                                            options:NSRegularExpressionCaseInsensitive
+                                                              error:nil];
+    });
+    return pattern;
+}
+
+
+// Lines that are also dropped while the exam runs. Before the exam starts and after it ends they are written as the
+// original writes them (the applications that happen to be open when SEB starts); during the exam each of them is
+// something the student did. Found by going through every log statement of the original that can fire while a
+// session runs.
+//   other applications and processes     which application opened a window or was found, checked, terminated, started
+//   focus, keys, sessions                SEB's window becoming or resigning key, the active window, Tab, user switching
+//   Dock and links                       starting an application from SEB's Dock, opening new windows/tabs, reloading,
+//                                        links the URL filter blocked, file upload, TLS challenges naming a host,
+//                                        cookie dumps, a page opening a window with JavaScript, dictionary look-ups
+//   kiosk, window levels, screens        what the exam lock (Cmd+Shift+L) drives inside SEB: switching the kiosk mode,
+//                                        window levels, covering windows, screen set-up. Dropped by what they say, so the
+//                                        lock leaves no trace even in a line that arrives after the lock's mute is over.
+//   bundle ID / localized name / executable URL     any other line that identifies an application
++ (NSRegularExpression *)runningMaskedPattern
+{
+    static NSRegularExpression *pattern;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        pattern = [NSRegularExpression regularExpressionWithPattern:
+                   @"has opened a window with level|don'?t terminate application|is being force terminated|signed system executable"
+                   @"|Control/Notification Center was opened|owns menu bar|Active window:|Window list:|Window .+ is on space"
+                   @"|NSRunningApplication|owning process|PID: .+ - (Name|Bundle ID)|process with PID|True Parent PID"
+                   @"|Running process .+ did terminate|prohibited process|Terminating .+ was|terminate[d]? app(lication)?|force terminat"
+                   @"|terminated by SEB during this session|restart terminated process|Application .+ was terminated"
+                   @"|SEB got active|did (become|resign) (key|main)|Current key window|Tab key pressed|Option \\+ .*Tab"
+                   @"|SessionDid(Resign|Become)Active|User switch|switched the Space"
+                   @"|Dock button pressed|Application with Bundle ID|Activating application|Manually starting application"
+                   @"|Open new window/tab|Opening new window/tab|link was blocked|blocked by the (URL|content) filter"
+                   @"|Reload(ing)? (Current Page|current webpage)|File to upload|Open and Save Panels|Attempted .+ is not allowed"
+                   @"|didReceiveChallenge|cookies( after transfer)?:|Javascript \\.open|Dictionary look-up"
+                   @"|font used on the current webpage|most likely opened dialog"
+                   @"|switchKioskMode|startKioskMode|changeWindowLevels|browserWindowsChangeLevel|setLevelForBrowserWindow"
+                   @"|setElevateWindowLevels|adjustModalAlertWindowLevels|setPresentationOptions|reinforc[A-Za-z ]*kiosk"
+                   @"|coverScreens|closeCoveringWindows|covering window|Cap window|background windows|Screen is (in)?active"
+                   @"|Flagged screen|Adjusting (screen|lockdown)|will move|did move|windowDidChangeScreen|Adjusted window frame"
+                   @"|inactive screen|move window back|Moved browser window back"
+                   @"|bundle ?ID|localized ?name|executable ?URL"
                                                             options:NSRegularExpressionCaseInsensitive
                                                               error:nil];
     });
@@ -143,21 +189,24 @@ static NSLock *phaseLock;
         return YES;
     }
 #endif
-    if (phase == ExamLogPhaseRunning) {
-        return NO;
-    }
     if (message.length == 0) {
         return NO;
     }
+    BOOL running = (phase == ExamLogPhaseRunning);
     NSRange all = NSMakeRange(0, message.length);
-    if ([[self runningApplicationLinePattern] numberOfMatchesInString:message options:0 range:all] > 0) {
+    // The lists of applications that were running when SEB started are written as the original writes them
+    if (!running && [[self runningApplicationLinePattern] numberOfMatchesInString:message options:0 range:all] > 0) {
         return YES;
     }
     BOOL marker = [[self markerLinePattern] numberOfMatchesInString:message options:0 range:all] > 0;
     if (muted && !marker) {
         return NO;
     }
-    return [[self neverLoggedPattern] numberOfMatchesInString:message options:0 range:NSMakeRange(0, message.length)] == 0;
+    if ([[self neverLoggedPattern] numberOfMatchesInString:message options:0 range:all] > 0) {
+        return NO;
+    }
+    // While the exam runs everything else the original writes is written, except what shows what the student does
+    return !(running && [[self runningMaskedPattern] numberOfMatchesInString:message options:0 range:all] > 0);
 }
 
 

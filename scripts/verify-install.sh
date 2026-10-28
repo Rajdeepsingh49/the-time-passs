@@ -68,7 +68,7 @@ if [ -n "$LATEST" ]; then
   grep -q 'INITIALIZING SEB - STARTING SESSION' "$LATEST" && ok "has the start of the session (with its time)" || fail "the start-of-session line is missing"
   grep -q 'EXITING SEB - ENDING SESSION' "$LATEST" && ok "has the end of the session (with its time)" || info "no end-of-session line (the exam may still be running, or SEB was force-quit)"
   grep -q 'Running applications at session start' "$LATEST" && ok "has the list of applications that were running at the start" || fail "the list of running applications is missing"
-  LEAKS="$(grep -ciE '://|Title of current Page|clipboard|pasteboard|Started application|Activated app' "$LATEST")"
+  LEAKS="$(grep -ciE '://|Title of current Page|clipboard|pasteboard|Started application|Activated app|launched app|Notification: +NSWorkspace' "$LATEST")"
   [ "$LEAKS" = "0" ] && ok "no page address, page title, clipboard or started application in it" || fail "$LEAKS lines that should never be there"
 fi
 
