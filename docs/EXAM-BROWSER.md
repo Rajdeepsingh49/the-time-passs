@@ -6,7 +6,7 @@ An internal build of Safe Exam Browser 3.7.1.1 for exams where students may use 
 
 ## Contents of a release
 
-`build/SafeExamBrowser-3.7.1.1.dmg`, universal (Apple silicon and Intel), about 12 MB. Build it with `bash scripts/build-dmg.sh` (needs Xcode; the first build downloads the Swift packages). Check a copy with `shasum -a 256`; the file built on 2026-10-28 has the SHA-256 `4bbe140d7607366a856692698674a068a34732a403506f1384a7ff35ea477b4d`.
+`build/SafeExamBrowser-3.7.1.1.dmg`, universal (Apple silicon and Intel), about 12 MB. Build it with `bash scripts/build-dmg.sh` (needs Xcode; the first build downloads the Swift packages). Check a copy with `shasum -a 256`; the file built on 2026-10-28 has the SHA-256 `2c6cb59f72ccbfb20a5839c0011e1167b9479ce0a101d2351a382d71cd4a0328`.
 
 `bash scripts/package-release.sh` then gathers what to hand out into `build/release/`: the DMG, `install-exam-browser.sh`, `verify-install.sh`, this guide, and `SHA256SUMS` (check with `shasum -a 256 -c SHA256SUMS` inside that folder).
 

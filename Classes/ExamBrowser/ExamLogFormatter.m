@@ -93,6 +93,8 @@ static NSLock *phaseLock;
 //   Started application, launched app, Activated app     applications the student starts or switches to
 //   Switched back to SEB, Regain active, isActive property, App which switched Space     focus and window switching
 //   Notification: NSWorkspace...   the system telling SEB that an application started, was activated or the Space changed
+//   terminated by SEB during this session: <entries>, Trying to restart terminated process     the applications SEB had
+//                               to end when quitting (only with exam settings that forbid applications)
 // Everything else the original writes stays exactly as the original wrote it.
 + (NSRegularExpression *)neverLoggedPattern
 {
@@ -103,6 +105,7 @@ static NSLock *phaseLock;
                    @"://|Title of current Page|clipboard|pasteboard|download"
                    @"|Started application|launched app|Activated app|Switched back to SEB|Regain active|isActive property|App which switched Space"
                    @"|Notification: +NSWorkspace"
+                   @"|Trying to restart terminated process|terminated by SEB during this session:[^\\n]*\\n +[^ \\n)]"
                                                             options:NSRegularExpressionCaseInsensitive
                                                               error:nil];
     });
