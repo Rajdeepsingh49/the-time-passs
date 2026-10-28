@@ -88,6 +88,6 @@ If a step fails, send the step number, the Mac model, the macOS version (Apple m
 
 Tested on macOS 26.2 (Apple silicon), from the built DMG, with real key presses: launching from a `.seb` file (the address parser was tested separately on 29 inputs, including `seb://`, `sebs://`, bare host names and rejected schemes); copy and paste (normal and hostile pages); lock and unlock, blocked keys, Mission Control; the quit dialog; the camera exam end to end; the log against the complete original log; a network check (the app's own process connects to nothing but this Mac; no code that contacts a fixed remote host is compiled in); installing from a DMG marked as downloaded; first launch on a Mac that has the official SEB's preferences; dozens of launches and quits in a row without a crash or hang.
 
-The pushed source also builds from an empty folder (a fresh clone of the `college-open-book` branch, built with `scripts/build-dmg.sh`): same app contents, same checks pass.
+The pushed source also builds from an empty folder (a fresh clone of this repository's `main` branch, built with `scripts/build-dmg.sh`): same app contents, same checks pass.
 
 Not tested: a second Mac (use the checklist above on it), other macOS versions, Intel Macs, real trackpad gestures (the equivalent keyboard shortcuts were used), more than one display, and sleep or wake during an exam.
