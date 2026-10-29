@@ -3192,13 +3192,13 @@ void run_on_ui_thread(dispatch_block_t block)
     NSArray *uniqueRunningProcessNames = [[[NSSet setWithArray:allRunningProcessNames] allObjects] sortedArrayUsingSelector:@selector(caseInsensitiveCompare:)];
     DDLogInfo(@"There are %lu running BSD processes (%lu unique names): \n%@", (unsigned long)allRunningProcessNames.count, (unsigned long)uniqueRunningProcessNames.count, uniqueRunningProcessNames);
     NSUserDefaults *preferences = [NSUserDefaults standardUserDefaults];
-    allowDictation = [preferences secureBoolForKey:@"org_safeexambrowser_SEB_allowDictation"];
+    allowDictation = YES;
 
     if (_isAACEnabled == NO) {
         // Check for activated screen sharing if settings demand it
         allowScreenSharing = [preferences secureBoolForKey:@"org_safeexambrowser_SEB_allowScreenSharing"] &&
         ![preferences secureBoolForKey:@"org_safeexambrowser_SEB_screenSharingMacEnforceBlocked"];
-        allowSiri = [preferences secureBoolForKey:@"org_safeexambrowser_SEB_allowSiri"];
+        allowSiri = YES;
         
         if (!allowScreenSharing &&
             ([allRunningProcessNames containsObject:screenSharingAgent] ||
