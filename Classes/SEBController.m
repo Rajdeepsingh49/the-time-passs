@@ -3273,6 +3273,12 @@ void run_on_ui_thread(dispatch_block_t block)
         [self requestedReinforceKioskMode:nil];
         // ... and once it has settled, the black cover can go (unless the exam or the lock needs it)
         [self scheduleEndOfStartupCoverAfter:0.8];
+
+        // Exams start locked (strict kiosk) by default. The student unlocks with Cmd+Shift+L when the
+        // invigilator allows switching to other apps; this only sets the initial state, the shortcut
+        // toggles from here. The session is already running at this point, so the lock takes effect and
+        // -strictKioskActive keeps the black cover when -endStartupCover runs 0.8 s later.
+        [self setExamLockedState:YES];
     }
     
     if ([[MyGlobals sharedMyGlobals] preferencesReset] == YES) {
