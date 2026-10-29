@@ -1,0 +1,22 @@
+# Config for VS Code's clang language server (clangd) only. It does NOT affect the build —
+# Xcode / xcodebuild compile this project with their own flags and report none of these.
+#
+# When clangd analyzes an Objective-C file on its own, it lacks Xcode's header-search paths
+# and builds with modules off. Everything then cascades from headers it can't locate:
+#   pp_file_not_found           "'<Header>.h' file not found"  (the header exists; its folder
+#                               just isn't on clangd's search path)
+#   atimport                    "Use of '@import' when modules are disabled"  (Xcode has them on)
+#   unknown_typename / _suggest a type is unknown only because its defining header wasn't found
+#   undeclared_protocol         same, for an @protocol
+#   objc_property_requires_object  a follow-on: a @property of a type clangd couldn't resolve
+#
+# These categories are unreliable when a single file is parsed without the real build context,
+# so they're suppressed here. Genuine problems still surface in Xcode and in `xcodebuild`.
+Diagnostics:
+  Suppress:
+    - pp_file_not_found
+    - atimport
+    - unknown_typename
+    - unknown_typename_suggest
+    - undeclared_protocol
+    - objc_property_requires_object
