@@ -90,7 +90,9 @@ import CocoaLumberjackSwift
         let jsApiUserScript = WKUserScript(source: jsApiCode, injectionTime: WKUserScriptInjectionTime.atDocumentStart, forMainFrameOnly: false)
         userContentController.addUserScript(jsApiUserScript)
         
-        // Copy and paste always work, and no page can tell that the student switched windows or tabs
+        // Clipboard and selection are left native so the page's own handlers work (an editor can copy/
+        // paste correctly, and a page may block copy/paste); the guard only masks window/tab/app switching
+        // from the page and stops a page from cancelling Cmd+Q
         let examPageGuardCode = ExamPageGuard.scriptSource()
         if !examPageGuardCode.isEmpty {
             userContentController.addUserScript(WKUserScript(source: examPageGuardCode, injectionTime: WKUserScriptInjectionTime.atDocumentStart, forMainFrameOnly: false))
