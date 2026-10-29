@@ -377,17 +377,21 @@
 }
 
 
-// Adjust the size of the main browser window and bring it forward
+// Adjust the size of the main browser window and bring it forward. This runs whenever the screens change, which
+// also happens while the student works in another app, so unlocked it only re-fronts the window if SEB is the app
+// in front already.
 - (void) adjustMainBrowserWindow
 {
     if (self.mainBrowserWindow.isVisible) {
         [self.mainBrowserWindow setCalculatedFrame];
-        [self.mainBrowserWindow makeKeyAndOrderFront:self];
+        if ([self.sebController strictKioskActive] || NSApp.isActive) {
+            [self.mainBrowserWindow makeKeyAndOrderFront:self];
+        }
     }
 }
 
 
-// Change window level of all open browser windows
+// Move all browser windows to the given screen. Only the strict kiosk (exam lock on) pulls SEB in front of other apps.
 - (void) moveAllBrowserWindowsToScreen:(NSScreen *)screen
 {
     NSArray *openWindowDocuments = [[NSDocumentController sharedDocumentController] documents];
@@ -398,9 +402,14 @@
             [browserWindow setCalculatedFrameOnScreen:screen];
         }
     }
-    
-    [[NSRunningApplication currentApplication] activateWithOptions:(NSApplicationActivateAllWindows | NSApplicationActivateIgnoringOtherApps)];
-    [self.mainBrowserWindow makeKeyAndOrderFront:self];
+
+    BOOL strictKiosk = [self.sebController strictKioskActive];
+    if (strictKiosk) {
+        [[NSRunningApplication currentApplication] activateWithOptions:(NSApplicationActivateAllWindows | NSApplicationActivateIgnoringOtherApps)];
+    }
+    if (strictKiosk || NSApp.isActive) {
+        [self.mainBrowserWindow makeKeyAndOrderFront:self];
+    }
 }
 
 
@@ -477,9 +486,12 @@
         [(SEBBrowserWindow *)additionalBrowserWindow setCalculatedFrame];
         BOOL elevateWindowLevels = [[NSUserDefaults standardUserDefaults] secureBoolForKey:@"org_safeexambrowser_elevateWindowLevels"];
         [self setLevelForBrowserWindow:additionalBrowserWindow elevateLevels:elevateWindowLevels];
-        
-        [[NSRunningApplication currentApplication] activateWithOptions:(NSApplicationActivateAllWindows | NSApplicationActivateIgnoringOtherApps)];
-        
+
+        // A window the page opens by itself must not pull the student away from another app, unless the exam lock is on
+        if ([self.sebController strictKioskActive]) {
+            [[NSRunningApplication currentApplication] activateWithOptions:(NSApplicationActivateAllWindows | NSApplicationActivateIgnoringOtherApps)];
+        }
+
         //[additionalBrowserWindow makeKeyAndOrderFront:self];
         
         DDLogInfo(@"Open additional browser window with URL: %@", URL);

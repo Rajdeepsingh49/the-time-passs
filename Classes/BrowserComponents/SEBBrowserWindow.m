@@ -1342,8 +1342,11 @@
         [[NSNotificationCenter defaultCenter] postNotificationName:@"requestCloseAboutWindowNotification" object:self];
         
         NSString *titleString = NSLocalizedString(@"Load Error",nil);
-        [[NSRunningApplication currentApplication] activateWithOptions:(NSApplicationActivateAllWindows | NSApplicationActivateIgnoringOtherApps)];
-        [self makeKeyAndOrderFront:self];
+        // A page that fails to load while the student works in another app must not pull them back, unless the exam lock is on
+        if ([self.browserController.sebController strictKioskActive]) {
+            [[NSRunningApplication currentApplication] activateWithOptions:(NSApplicationActivateAllWindows | NSApplicationActivateIgnoringOtherApps)];
+            [self makeKeyAndOrderFront:self];
+        }
         
         NSAlert *modalAlert = [self.browserController.sebController newAlert];
         [modalAlert setMessageText:titleString];
@@ -1419,9 +1422,13 @@ initiatedByFrame:(WKFrameInfo *)frame
 completionHandler:(void (^)(void))completionHandler
 {
     NSString *pageTitle = webView.title;
-    [[NSRunningApplication currentApplication] activateWithOptions:(NSApplicationActivateAllWindows | NSApplicationActivateIgnoringOtherApps)];
-    [self makeKeyAndOrderFront:self];
-    
+    // A dialog the page raises by itself (a timer warning, say) must not pull the student away from another app,
+    // unless the exam lock is on
+    if ([self.browserController.sebController strictKioskActive]) {
+        [[NSRunningApplication currentApplication] activateWithOptions:(NSApplicationActivateAllWindows | NSApplicationActivateIgnoringOtherApps)];
+        [self makeKeyAndOrderFront:self];
+    }
+
     NSAlert *modalAlert = [self.browserController.sebController newAlert];
     DDLogWarn(@"%s: %@", __FUNCTION__, message);
     [modalAlert setMessageText:pageTitle];
@@ -1439,9 +1446,11 @@ completionHandler:(void (^)(void))completionHandler
 - (void)pageTitle:(NSString *)pageTitle
 runJavaScriptAlertPanelWithMessage:(NSString *)message
 {
-    [[NSRunningApplication currentApplication] activateWithOptions:(NSApplicationActivateAllWindows | NSApplicationActivateIgnoringOtherApps)];
-    [self makeKeyAndOrderFront:self];
-    
+    if ([self.browserController.sebController strictKioskActive]) {
+        [[NSRunningApplication currentApplication] activateWithOptions:(NSApplicationActivateAllWindows | NSApplicationActivateIgnoringOtherApps)];
+        [self makeKeyAndOrderFront:self];
+    }
+
     NSAlert *modalAlert = [self.browserController.sebController newAlert];
     DDLogWarn(@"%s: %@", __FUNCTION__, message);
     [modalAlert setMessageText:pageTitle];
@@ -1461,9 +1470,11 @@ initiatedByFrame:(WKFrameInfo *)frame
 completionHandler:(void (^)(BOOL result))completionHandler
 {
     NSString *pageTitle = webView.title;
-    [[NSRunningApplication currentApplication] activateWithOptions:(NSApplicationActivateAllWindows | NSApplicationActivateIgnoringOtherApps)];
-    [self makeKeyAndOrderFront:self];
-    
+    if ([self.browserController.sebController strictKioskActive]) {
+        [[NSRunningApplication currentApplication] activateWithOptions:(NSApplicationActivateAllWindows | NSApplicationActivateIgnoringOtherApps)];
+        [self makeKeyAndOrderFront:self];
+    }
+
     NSModalResponse alertResultButton;
     if (@available(macOS 12.0, *)) {
     } else {
@@ -1491,9 +1502,11 @@ completionHandler:(void (^)(BOOL result))completionHandler
 - (BOOL)pageTitle:(NSString *)pageTitle
 runJavaScriptConfirmPanelWithMessage:(NSString *)message
 {
-    [[NSRunningApplication currentApplication] activateWithOptions:(NSApplicationActivateAllWindows | NSApplicationActivateIgnoringOtherApps)];
-    [self makeKeyAndOrderFront:self];
-    
+    if ([self.browserController.sebController strictKioskActive]) {
+        [[NSRunningApplication currentApplication] activateWithOptions:(NSApplicationActivateAllWindows | NSApplicationActivateIgnoringOtherApps)];
+        [self makeKeyAndOrderFront:self];
+    }
+
     NSModalResponse alertResultButton;
     if (@available(macOS 12.0, *)) {
     } else {
