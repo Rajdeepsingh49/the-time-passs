@@ -1,22 +1,23 @@
-# Config for VS Code's clang language server (clangd) only. It does NOT affect the build —
+# Config for VS Code's clangd language server ONLY. It does NOT affect the build —
 # Xcode / xcodebuild compile this project with their own flags and report none of these.
 #
-# When clangd analyzes an Objective-C file on its own, it lacks Xcode's header-search paths
-# and builds with modules off. Everything then cascades from headers it can't locate:
-#   pp_file_not_found           "'<Header>.h' file not found"  (the header exists; its folder
-#                               just isn't on clangd's search path)
-#   atimport                    "Use of '@import' when modules are disabled"  (Xcode has them on)
-#   unknown_typename / _suggest a type is unknown only because its defining header wasn't found
-#   undeclared_protocol         same, for an @protocol
-#   objc_property_requires_object  a follow-on: a @property of a type clangd couldn't resolve
+# This is an Xcode + CocoaPods project. When clangd opens an Objective-C file on its own it has
+# none of Xcode's build settings: no SDK sysroot, no framework/header search paths, and modules
+# are off. So Foundation and CocoaLumberjack types — NSString, NSDate, NSMutableArray<NSArray *>,
+# DDLogMessage, DDLogFileFormatterDefault, the ExamLogPhase enum, ... — all resolve to "unknown".
+# The lightweight generics (NSMutableArray<...>) and the method signatures that use those types
+# then fail to parse, and a single unresolved header cascades into a wall of bogus errors:
+#   "Expected a type"              a type name clangd couldn't resolve (e.g. ExamLogPhase)
+#   "Expected identifier or '('"   the <...> of an Objective-C generic on an unknown class
+#   "Too many errors ... stopping" the cascade tripping clangd's error ceiling
 #
-# These categories are unreliable when a single file is parsed without the real build context,
-# so they're suppressed here. Genuine problems still surface in Xcode and in `xcodebuild`.
+# None of this reflects the real code — these files compile cleanly in Xcode and ship in the DMG.
+# Properly teaching clangd this project would need a generated compile_commands.json for the whole
+# CocoaPods workspace. Short of that, clangd's diagnostics here are pure noise, so they are turned
+# off. Code navigation and completion still work. GENUINE problems still surface in Xcode and in
+# `xcodebuild`, which is what actually compiles the project.
+#
+# NOTE: clangd caches this file. After changing it you MUST restart the server for it to take
+# effect: Command Palette (Shift+Cmd+P) -> "clangd: Restart language server", or reload the window.
 Diagnostics:
-  Suppress:
-    - pp_file_not_found
-    - atimport
-    - unknown_typename
-    - unknown_typename_suggest
-    - undeclared_protocol
-    - objc_property_requires_object
+  Suppress: '*'
