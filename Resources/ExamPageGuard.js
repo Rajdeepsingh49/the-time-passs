@@ -278,52 +278,64 @@
             }
           };
           var fixedClip = null, navClipLocked = false;
-          // Re-appliable: complex pages (CodeChef) restore the native navigator.clipboard after load. We
-          // patch the prototype each time AND lock navigator.clipboard to our bridged object once, so a
-          // later restore can't revert it and the editor captures our version.
+          // DO NOT override navigator.clipboard. Installing our bridge onto it - its own methods, the Clipboard
+          // prototype, or redefining the property (even configurable:true, re-asserted on the 500ms timer) -
+          // BREAKS CodeChef /learn's VS Code-web workbench: the editor shell mounts but file CONTENTS never
+          // load, so the editor opens blank. Proven by bisect: files load only when this override is removed,
+          // and it is NOT merely the old configurable:false throw - the act of seizing navigator.clipboard is
+          // itself what breaks workbench file loading. Copy/paste never needed it: the keydown handler drives
+          // them through the native sebReadText / sebWriteText bridge directly, and pages that try to BLOCK the
+          // clipboard are defeated at the event layer (keydown ownership + synthetic paste + addEventListener
+          // pin), not by owning navigator.clipboard. We keep only the harmless Blob / ClipboardItem patches
+          // (these ran fine in the working bisect) for the rare page that reads clipboard via a ClipboardItem.
           reapplyClipboard = function () {
             try {
               patchBlob();
               patchClipboardItem();
               if (!navigator.clipboard) { try { Object.defineProperty(navigator, 'clipboard', { value: {}, configurable: true }); } catch (e) {} }
-              if (!fixedClip) {
-                fixedClip = {};
-                try { var orig = navigator.clipboard; for (var k in orig) { try { if (typeof orig[k] === 'function') { fixedClip[k] = orig[k].bind(orig); } } catch (e2) {} } } catch (e3) {}
-              }
-              fixedClip.writeText = sebWriteText;
-              fixedClip.readText = sebReadText;
-              fixedClip.write = sebWrite;
-              fixedClip.read = sebRead;
-              applyTo(navigator.clipboard);
-              try { applyTo(Object.getPrototypeOf(navigator.clipboard)); } catch (e) {}
-              try { if (window.Clipboard && window.Clipboard.prototype) { applyTo(window.Clipboard.prototype); } } catch (e) {}
-              if (!navClipLocked) {
-                try { Object.defineProperty(navigator, 'clipboard', { get: function () { return fixedClip; }, configurable: false }); navClipLocked = true; } catch (e) {
-                  try { Object.defineProperty(navigator, 'clipboard', { get: function () { return fixedClip; }, configurable: true }); } catch (e2) {}
-                }
-              }
             } catch (e) {}
           };
           reapplyClipboard();
           setInterval(reapplyClipboard, 500);
           dbg('CB bridge installed navWT=' + (navigator.clipboard && navigator.clipboard.writeText === sebWriteText));
 
-          // ROOT CAUSE of dead paste on CodeChef /learn: the page OVERRIDES EventTarget.prototype
-          // .addEventListener to drop 'paste' (and copy/cut) listeners (proven: aelNative=0, and a paste
-          // listener added to a brand-new element we own never fires). That kills the EDITOR'S OWN paste
-          // handler at registration time. We lock addEventListener to a transparent pass-through at
-          // document-start - before the page's scripts run - so the page cannot install its stripper and the
-          // editor's paste listener registers normally; our synthetic paste then reaches it. The property is
-          // an un-writable accessor whose setter silently ignores override attempts, so the page's
-          // `addEventListener = ...` assignment is a no-op instead of throwing (keeps the page working).
+          // ROOT CAUSE of dead paste on CodeChef /learn: the page REPLACES EventTarget.prototype
+          // .addEventListener with a wrapper that drops 'paste'/'copy'/'cut' listeners (proven: aelNative=0,
+          // and a paste listener added to a brand-new element we own never fires). That kills the EDITOR'S
+          // OWN paste handler at registration time, so we keep addEventListener pinned to a transparent
+          // pass-through: the stripper never stays in place and the editor's paste listener registers
+          // normally; our synthetic paste then reaches it.
+          //
+          // The property MUST stay configurable:true. A previous version pinned it configurable:false; when
+          // the page installed its stripper via Object.defineProperty (not plain assignment), that redefine
+          // THREW on our locked property and aborted the page's bootstrap - the editor mounted but stayed
+          // EMPTY (no starter code, blank file contents). With configurable:true the page's redefine succeeds
+          // (no throw, the page loads its content), and we re-assert our pass-through on a short timer so the
+          // stripper never wins by the time the editor is created. The no-op setter absorbs the common
+          // `addEventListener = ...` assignment form with no re-assert needed.
           try {
             var _realAEL = EventTarget.prototype.addEventListener;
             if (typeof _realAEL === 'function') {
               var _passAEL = function () { return _realAEL.apply(this, arguments); };
-              Object.defineProperty(EventTarget.prototype, 'addEventListener', {
-                get: function () { return _passAEL; }, set: function () {}, configurable: false, enumerable: true
-              });
-              dbg('CB addEventListener locked');
+              var _getAEL = function () { return _passAEL; };
+              var _aelInstalled = false, _aelRestores = 0;
+              var _pinAEL = function () {
+                try {
+                  var d = Object.getOwnPropertyDescriptor(EventTarget.prototype, 'addEventListener');
+                  if (d && d.get === _getAEL) { return; }          // ours already in place
+                  if (d && d.configurable === false) { return; }   // a non-configurable override exists; bail, never throw
+                  if (_aelInstalled) { _aelRestores++; }           // ours was replaced by the page's stripper -> restore it
+                  Object.defineProperty(EventTarget.prototype, 'addEventListener', {
+                    get: _getAEL, set: function () {}, configurable: true, enumerable: false
+                  });
+                  _aelInstalled = true;
+                } catch (e) {}
+              };
+              _pinAEL();
+              setTimeout(_pinAEL, 0); setTimeout(_pinAEL, 60); setTimeout(_pinAEL, 200);
+              setTimeout(_pinAEL, 600); setTimeout(_pinAEL, 1500); setTimeout(_pinAEL, 4000);
+              setInterval(function () { _pinAEL(); if (DIAG && _aelRestores) { dbg('CB AEL re-pinned x' + _aelRestores); } }, 800);
+              dbg('CB addEventListener pinned (pass-through, configurable)');
             }
           } catch (e) {}
 
