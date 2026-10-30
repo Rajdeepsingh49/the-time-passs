@@ -123,6 +123,10 @@ import CocoaLumberjackSwift
         userContentController.add(self, name: "updateKeys")
         userContentController.add(self, name: "firstElementBlured")
         userContentController.add(self, name: "lastElementBlured")
+        // Clipboard bridge: WKWebView denies the JS Clipboard API, so the guard's navigator.clipboard
+        // override routes reads/writes through these handlers to the native pasteboard instead.
+        userContentController.add(self, name: "sebClipWrite")
+        userContentController.add(self, name: "sebClipRead")
         webViewConfiguration?.userContentController = userContentController
         let allowContentJavaScript = UserDefaults.standard.secureBool(forKey: "org_safeexambrowser_SEB_enableJavaScript")
         if #available(macOS 11.0, iOS 14.0, *) {
@@ -131,6 +135,13 @@ import CocoaLumberjackSwift
             webViewConfiguration?.preferences.javaScriptEnabled = allowContentJavaScript
         }
         webViewConfiguration?.preferences.javaScriptCanOpenWindowsAutomatically = !UserDefaults.standard.secureBool(forKey: "org_safeexambrowser_SEB_blockPopUpWindows")
+        // Open-book: let JavaScript reach the system clipboard. WKWebView disables JS clipboard access by
+        // default, which silently breaks copy/paste in code editors on judge sites (CodeChef's Monaco, Ace,
+        // CodeMirror): their copy/paste runs through the JS Clipboard API, and even the paste event is not
+        // delivered while this is off. The student must be able to move code and problem text in and out.
+        // Private WebKit keys, set the same way the project already sets `allowsRemoteInspection`.
+        webViewConfiguration?.preferences.setValue(true, forKey: "javaScriptCanAccessClipboard")
+        webViewConfiguration?.preferences.setValue(true, forKey: "DOMPasteAllowed")
 #if os(macOS)
         if #available(macOS 10.12.3, *) {
             webViewConfiguration?.preferences.tabFocusesLinks = UserDefaults.standard.secureBool(forKey: "org_safeexambrowser_SEB_tabFocusesLinks")
@@ -141,6 +152,33 @@ import CocoaLumberjackSwift
     
     public func userContentController(_ userContentController: WKUserContentController,
                                       didReceive message: WKScriptMessage) {
+        if message.name == "sebClipWrite" {
+            if let text = message.body as? String {
+#if os(macOS)
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(text, forType: .string)
+#else
+                UIPasteboard.general.string = text
+#endif
+            }
+            return
+        }
+        if message.name == "sebClipRead" {
+#if os(macOS)
+            let text = NSPasteboard.general.string(forType: .string) ?? ""
+#else
+            let text = UIPasteboard.general.string ?? ""
+#endif
+            var json = "\"\""
+            if let data = try? JSONSerialization.data(withJSONObject: text, options: [.fragmentsAllowed]),
+               let encoded = String(data: data, encoding: .utf8) {
+                json = encoded
+            }
+            var idStr = "0"
+            if let idNum = message.body as? NSNumber { idStr = idNum.stringValue }
+            message.webView?.evaluateJavaScript("window.__sebClipRead && window.__sebClipRead(\(idStr), \(json));", completionHandler: nil)
+            return
+        }
         if message.name == "updateKeys" {
             let frame = message.frameInfo
             DDLogDebug("Modern WebView received updateKeys message from \(frame.isMainFrame ? "main " : "")frame with request \(frame.request)")

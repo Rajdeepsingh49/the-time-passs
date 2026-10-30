@@ -354,26 +354,19 @@ public class SEBOSXWKWebView: WKWebView {
     }
     
     public override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        // Route Cmd+C / Cmd+X / Cmd+V through the NATIVE editing commands (NSPasteboard), always.
+        // WKWebView denies the JavaScript Clipboard API (navigator.clipboard / execCommand), so a code
+        // editor's own copy and paste - and judge sites (CodeChef's Monaco, etc.) that run their clipboard
+        // through JavaScript - silently fail. The native paste fires a trusted paste event the editor
+        // honours, and the native copy uses NSPasteboard directly; both bypass the JS denial and any page
+        // keystroke blocker. privateCopy/Cut/Paste additionally store/restore a private clipboard only when
+        // one is configured (privateClipboardEnabled); open-book leaves that off and just copies/pastes.
         if sebOSXWebViewController?.privateClipboardEnabled == true {
-            let chars = event.characters
-            var status = false
-            
-            if event.modifierFlags.contains(.command)  {
-                if chars == "c" {
-                    privateCopy(self)
-                    status = true
-                }
-                if chars == "x" {
-                    privateCut(self)
-                    status = true
-                }
-                if chars == "v" {
-                    privatePaste(self)
-                    status = true
-                }
-            }
-            if status {
-                return true
+            let realModifiers = event.modifierFlags.intersection([.command, .shift, .control, .option])
+            if realModifiers == .command, let chars = event.charactersIgnoringModifiers {
+                if chars == "c" { privateCopy(self); return true }
+                if chars == "x" { privateCut(self); return true }
+                if chars == "v" { privatePaste(self); return true }
             }
         }
         return super.performKeyEquivalent(with: event)
