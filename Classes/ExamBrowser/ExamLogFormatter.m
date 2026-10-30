@@ -92,6 +92,9 @@ static NSLock *phaseLock;
 //   download                    names of downloaded files
 //   Started application, launched app, Activated app     applications the student starts or switches to
 //   Switched back to SEB, Regain active, isActive property, App which switched Space     focus and window switching
+//   did become/resign key or main, Current key window, SEB got active, Active window, Window list, Window ... is on space
+//                               SEB's windows gaining or losing focus. Dropped in every phase, not only while the exam
+//                               runs: a student who switches away in the first seconds or at the quit must not show either.
 //   Notification: NSWorkspace...   the system telling SEB that an application started, was activated or the Space changed
 //   terminated by SEB during this session: <entries>, Trying to restart terminated process     the applications SEB had
 //                               to end when quitting (only with exam settings that forbid applications)
@@ -104,6 +107,7 @@ static NSLock *phaseLock;
         pattern = [NSRegularExpression regularExpressionWithPattern:
                    @"://|Title of current Page|clipboard|pasteboard|download"
                    @"|Started application|launched app|Activated app|Switched back to SEB|Regain active|isActive property|App which switched Space"
+                   @"|did (become|resign) (key|main)|Current key window|SEB got active|Active window:|Window list:|Window .+ is on space"
                    @"|Notification: +NSWorkspace"
                    @"|Trying to restart terminated process|terminated by SEB during this session:[^\\n]*\\n +[^ \\n)]"
                                                             options:NSRegularExpressionCaseInsensitive
